@@ -14,7 +14,7 @@ public class OrderService {
 
     @Resource
     private RedisTemplate redisTemplate;
-    private static final String ORDER_KEY = "order";
+    private static final String ORDER_KEY = "order:";
 
     public void addOrder(){
         Integer keyId = ThreadLocalRandom.current().nextInt(1000) + 1;
