@@ -15,6 +15,7 @@ import java.sql.Date;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
 
 /**
  * ClassName: CustomerController
@@ -48,5 +49,11 @@ public class CustomerController {
     @RequestMapping(value = "/customer/{id}", method = RequestMethod.GET)
     public Customer findCustomerById(@PathVariable int id) {
         return customerService.findCustomerById(id);
+    }
+
+    @ApiOperation("BloomFilter案例讲解")
+    @RequestMapping(value = "/customerbloomfilter/{id}", method = RequestMethod.GET)
+    public Customer findCustomerByIdWithBloomFilter(@PathVariable int id) throws ExecutionException, InterruptedException {
+        return customerService.findCustomerByIdWithBloomFilter(id);
     }
 }

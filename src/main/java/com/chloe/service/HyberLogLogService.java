@@ -29,7 +29,7 @@ public class HyberLogLogService {
     /**
      * 模拟后台有用户点击首页，每个用户来自不同ip地址
      */
-    @PostConstruct
+//    @PostConstruct
     public void init() {
         new Thread(() -> {
             for (int i = 0; i < 200; i++) {

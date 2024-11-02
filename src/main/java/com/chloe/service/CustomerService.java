@@ -2,6 +2,7 @@ package com.chloe.service;
 
 import com.chloe.entity.Customer;
 import com.chloe.mapper.CustomerMapper;
+import com.chloe.utils.CheckUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -23,7 +24,10 @@ public class CustomerService {
     private RedisTemplate redisTemplate;
     @Autowired
     CustomerMapper customerMapper;
+    @Autowired
+    private CheckUtils checkUtils;
     private final static String CACHE_CUSTOMER_KEY = "customer:";
+    private final static String WHITELIST_KEY = "whitelistCustomer";
 
 
     /**
@@ -58,6 +62,37 @@ public class CustomerService {
         Customer customer = null;
 
         String key = CACHE_CUSTOMER_KEY + id;
+        customer = (Customer) redisTemplate.opsForValue().get(key);
+
+        if(customer == null){
+            customer = customerMapper.selectByPrimaryKey(id);
+
+            if (customer != null){
+                redisTemplate.opsForValue().set(key, customer);
+            }
+
+        }
+        return customer;
+    }
+
+    /**
+     * 根据id查询用户信息, 加上布隆过滤器
+     * 0.查询布隆过滤器是否存在，如果不存在，则返回空
+     * 1.如果存在，先查询Redis缓存
+     *  2.如果没有查询到数据， 则查询MySQL数据库
+     *    3.如果在MySQL查询到数据，则将查询到的数据回写都Redis缓存中
+     * @param id
+     * @return
+     */
+    public Customer findCustomerByIdWithBloomFilter(int id) {
+        Customer customer = null;
+        String key = CACHE_CUSTOMER_KEY + id;
+
+        if (!checkUtils.checkWithBloomFilter(WHITELIST_KEY, key)){
+            log.info("白名单没有这个用户： {}", key);
+            return null;
+        }
+
         customer = (Customer) redisTemplate.opsForValue().get(key);
 
         if(customer == null){
