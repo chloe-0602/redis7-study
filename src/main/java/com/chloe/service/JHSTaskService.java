@@ -64,4 +64,27 @@ public class JHSTaskService {
         }
         return list;
     }
+
+    public List<Product> find(int page, int size){
+        List<Product> list = null;
+
+        int start = (page - 1) * size;
+        int end = start + size;
+
+        try {
+            list = redisTemplate.opsForList().range(JHS_KEY, start, end);
+            if (list == null) {
+                /**
+                 * 隐患2： 当缓存查询不到时，会直接打到MySQL
+                 */
+                // TODO 走 DB
+            }
+        } catch (Exception e) {
+            log.error("查询不到缓存，错误是： {}", e);
+            e.printStackTrace();
+            // TODO 走 DB 查询
+        }
+
+        return list;
+    }
 }

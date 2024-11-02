@@ -1,6 +1,7 @@
 package com.chloe.controller;
 
 import com.chloe.entity.Product;
+import com.chloe.service.JHSTaskService;
 import io.swagger.annotations.Api;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,9 +28,7 @@ import java.util.List;
 public class JHSProductController {
 
     @Autowired
-    private RedisTemplate redisTemplate;
-
-    private final static String JHS_KEY = "jhs";
+    private JHSTaskService jhsTaskService;
 
     /**
      * 高并发 + 定时任务 + 分页任务
@@ -41,25 +40,6 @@ public class JHSProductController {
      */
     @GetMapping("/find")
     public List<Product> find(int page, int size) {
-        List<Product> list = null;
-
-        int start = (page - 1) * size;
-        int end = start + size;
-
-        try {
-            list = redisTemplate.opsForList().range(JHS_KEY, start, end);
-            if (list == null) {
-                /**
-                 * 隐患2： 当缓存查询不到时，会直接打到MySQL
-                 */
-                // TODO 走 DB
-            }
-        } catch (Exception e) {
-            log.error("查询不到缓存，错误是： {}", e);
-            e.printStackTrace();
-            // TODO 走 DB 查询
-        }
-
-        return list;
+        return jhsTaskService.find(page, size);
     }
 }
