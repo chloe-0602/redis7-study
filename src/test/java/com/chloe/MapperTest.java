@@ -23,12 +23,13 @@ public class MapperTest {
     private CustomerMapper customerMapper;
     @Test
     public void test1(){
+        // id回显
         Customer customer = new Customer();
         customer.setAge(19);
-        customer.setCname("herry");
+        customer.setCname("herry111");
         customer.setSex(Byte.valueOf("1"));
         customer.setPhone("13262816311");
         int rows = customerMapper.insertSelective(customer);
-        log.info("插入数据： {}", rows);
+        log.info("插入数据： {}, 结果: {}",customer, rows);
     }
 }
