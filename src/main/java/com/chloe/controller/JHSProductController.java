@@ -3,6 +3,7 @@ package com.chloe.controller;
 import com.chloe.entity.Product;
 import com.chloe.service.JHSTaskService;
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -39,7 +40,21 @@ public class JHSProductController {
      * @return
      */
     @GetMapping("/find")
+    @ApiOperation("按照分页和每页显示容量，点击查看")
     public List<Product> find(int page, int size) {
         return jhsTaskService.find(page, size);
+    }
+
+
+    /**
+     * 差异化缓存 避免隐患2，确保查不到也要很快返回回来
+     * @param page
+     * @param size
+     * @return
+     */
+    @GetMapping("/findAB")
+    @ApiOperation("防止热点key突然失效，AB双缓存架构")
+    public List<Product> findAB(int page, int size) {
+        return jhsTaskService.findAB(page, size);
     }
 }
