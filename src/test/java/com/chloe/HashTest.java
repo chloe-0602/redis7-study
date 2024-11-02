@@ -1,6 +1,5 @@
 package com.chloe;
 
-import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.junit.jupiter.api.Test;
