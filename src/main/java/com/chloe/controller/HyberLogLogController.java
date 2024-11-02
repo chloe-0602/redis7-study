@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
  * @Create 2024/11/2 11:30
  * @Version 1.0
  */
-@Api("HyberLogLog接口")
+@Api(tags ="淘宝网站首页亿级UV的Redis统计方案")
 @RestController
 @RequestMapping("hll")
 public class HyberLogLogController {
