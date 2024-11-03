@@ -39,13 +39,45 @@ public class InventoryService {
     private static final String INVENTORY_KEY_01 = "inventory001";
 
     /**
+     * 改造V8.0 新增自动续期
+     * @return
+     */
+    public String sale(){
+        String message = "";
+        Lock distributedLock = distributedLockFactory.getDistributedLock("redis");
+
+        distributedLock.lock();
+        try {
+            String inventoryNumberStr = stringRedisTemplate.opsForValue().get(INVENTORY_KEY_01);
+            Integer inventoryNum = inventoryNumberStr == null ? 0 : Integer.parseInt(inventoryNumberStr);
+            if (inventoryNum > 0) {
+                stringRedisTemplate.opsForValue().set(INVENTORY_KEY_01, String.valueOf(--inventoryNum));
+                message = "成功卖出一个商品，剩余：" + inventoryNum;
+                log.info(message);
+
+                log.info("---等待 {} 秒，大于lockkey的ttl时间30s", 120);
+                try { TimeUnit.SECONDS.sleep(120); } catch (InterruptedException e) { throw new RuntimeException(e); }
+
+            } else {
+                message = "商品卖完了......";
+                log.info(message);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            distributedLock.unlock();
+        }
+        return message + "\t" + "服务端口号：" + port;
+    }
+
+    /**
      * 改造V7.1 工厂设计模式+ lua脚本 实现
      * 1. 通用性
      * 2. 自研Redis分布式锁工具类
      * 使用lua脚本， 类似lock实现可重入性
      * @return
      */
-    public String sale() {
+    public String saleV7() {
         String message = "";
         Lock distributedLock = distributedLockFactory.getDistributedLock("redis");
 

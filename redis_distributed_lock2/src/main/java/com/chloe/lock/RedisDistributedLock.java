@@ -6,6 +6,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 
 import java.util.Arrays;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -72,10 +74,33 @@ public class RedisDistributedLock implements Lock {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
             log.info("--> redis distributed lock: {}", uuidValue);
+
+            renewExpire();
+
         } else {
             this.expireTime = unit.toSeconds(time);
         }
         return true;
+    }
+
+    private void renewExpire() {
+        String renewExpireLuaScript = "if redis.call('hexists',KEYS[1],ARGV[1]) == 1 then" +
+                " return redis.call('expire',KEYS[1],ARGV[2]) " +
+                " else " +
+                " return 0" +
+                " end";
+        new Timer().schedule(new TimerTask() {
+            @Override
+            public void run() {
+                if(stringRedisTemplate.execute(
+                        new DefaultRedisScript<>(renewExpireLuaScript, Boolean.class),
+                        Arrays.asList(lockName),
+                        uuidValue,
+                        String.valueOf(expireTime))){
+                    renewExpire();
+                }
+            }
+        }, (this.expireTime * 1000) / 3);
     }
 
     @Override
