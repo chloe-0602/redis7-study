@@ -1,5 +1,6 @@
 package com.chloe.lock;
 
+import cn.hutool.core.util.IdUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -20,8 +21,13 @@ import java.util.concurrent.locks.Lock;
 public class DistributedLockFactory {
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+    private String uuid;
     //    private String lockType;
     private String redisLockName = "chloeRedisLock";
+
+    public DistributedLockFactory(){
+        this.uuid = IdUtil.randomUUID();
+    }
 
     public Lock getDistributedLock(String lockType) {
         if (null == lockType) {
@@ -29,7 +35,7 @@ public class DistributedLockFactory {
         }
 
         if (lockType.equalsIgnoreCase("REDIS")) {
-            return new RedisDistributedLock(stringRedisTemplate, redisLockName);
+            return new RedisDistributedLock(stringRedisTemplate, redisLockName, uuid);
         } else if (lockType.equalsIgnoreCase("ZOOKEEPER")) {
             // TODO ZK
         }

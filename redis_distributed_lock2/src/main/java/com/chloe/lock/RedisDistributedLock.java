@@ -30,10 +30,10 @@ public class RedisDistributedLock implements Lock {
     private String uuidValue;
     private Long expireTime;
 
-    public RedisDistributedLock(StringRedisTemplate stringRedisTemplate, String lockName) {
+    public RedisDistributedLock(StringRedisTemplate stringRedisTemplate, String lockName, String uuid) {
         this.stringRedisTemplate = stringRedisTemplate;
         this.lockName = lockName;
-        this.uuidValue = IdUtil.randomUUID() + ":" + Thread.currentThread().getId();
+        this.uuidValue = uuid + ":" + Thread.currentThread().getId();
         this.expireTime = 30L;
     }
 
