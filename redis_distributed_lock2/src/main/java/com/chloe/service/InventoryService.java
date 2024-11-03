@@ -30,10 +30,11 @@ public class InventoryService {
     private Lock lock = new ReentrantLock();
     private static final String INVENTORY_KEY_01 = "inventory001";
 
-
     /**
-     * 修改版本V3.1： 使用递归重试
-     *
+     * 分布式锁 修改版本3.2，
+     *    1. 使用while代替if
+     *    2. 想想源码中的自旋
+     *    3. 注意while里面不需要加递归的代码
      * @return
      */
     public String sale() {
@@ -41,13 +42,57 @@ public class InventoryService {
         String redisLockKey = "chloeRedisLock";
         String uuidValue = IdUtil.randomUUID() + ":" + Thread.currentThread().getId();
 
+        while (!stringRedisTemplate.opsForValue().setIfAbsent(redisLockKey, uuidValue)) {
+            try {
+                TimeUnit.MILLISECONDS.sleep(20);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        try {
+            String inventoryNumberStr = stringRedisTemplate.opsForValue().get(INVENTORY_KEY_01);
+            Integer inventoryNum = inventoryNumberStr == null ? 0 : Integer.parseInt(inventoryNumberStr);
+            if (inventoryNum > 0) {
+                stringRedisTemplate.opsForValue().set(INVENTORY_KEY_01, String.valueOf(--inventoryNum));
+                message = "成功卖出一个商品，剩余：" + inventoryNum;
+                log.info(message);
+            } else {
+                message = "商品卖完了......";
+                log.info(message);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            stringRedisTemplate.delete(redisLockKey);
+        }
+
+        return message + "\t" + "服务端口号：" + port;
+    }
+
+
+    /**
+     * 修改版本V3.1： 使用递归重试
+     * 注意，测试的时候 saleV31() 修改为sale() 其他的sale() 方法名字改掉， 避免递归不对
+     *
+     * @return
+     */
+    public String saleV31() {
+        String message = "";
+        String redisLockKey = "chloeRedisLock";
+        String uuidValue = IdUtil.randomUUID() + ":" + Thread.currentThread().getId();
+
 //        log.info("--> redisLock --> Key: {} --> Value: {}",redisLockKey, uuidValue);
 
         Boolean flag = stringRedisTemplate.opsForValue().setIfAbsent(redisLockKey, uuidValue);
-        if(!flag){
-            try { TimeUnit.MILLISECONDS.sleep(20); } catch (InterruptedException e) { throw new RuntimeException(e); }
+        if (!flag) {
+            try {
+                TimeUnit.MILLISECONDS.sleep(20);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             sale();
-        }else{
+        } else {
             try {
                 String inventoryNumberStr = stringRedisTemplate.opsForValue().get(INVENTORY_KEY_01);
                 Integer inventoryNum = inventoryNumberStr == null ? 0 : Integer.parseInt(inventoryNumberStr);
