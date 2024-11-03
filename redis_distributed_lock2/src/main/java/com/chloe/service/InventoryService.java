@@ -31,11 +31,8 @@ public class InventoryService {
     private static final String INVENTORY_KEY_01 = "inventory001";
 
     /**
-     * V4.1 -》 V4.2
-     * 宕机与过期 + 防止死锁
-     * 解决方案： 加入一个过期时间
+     * 5. 防止误删key -》 对应 【不乱抢】
      *
-     * V4.2 设置key+过期时间需要合并成一个，具有原子性！！
      * @return
      */
     public String sale() {
@@ -44,7 +41,56 @@ public class InventoryService {
         String uuidValue = IdUtil.randomUUID() + ":" + Thread.currentThread().getId();
 
         // 自旋
-        while (!stringRedisTemplate.opsForValue().setIfAbsent(redisLockKey, uuidValue,30L, TimeUnit.SECONDS)) {
+        while (!stringRedisTemplate.opsForValue().setIfAbsent(redisLockKey, uuidValue, 30L, TimeUnit.SECONDS)) {
+            try {
+                TimeUnit.MILLISECONDS.sleep(20);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+//        stringRedisTemplate.expire(redisLockKey,20L, TimeUnit.SECONDS);
+
+        try {
+            String inventoryNumberStr = stringRedisTemplate.opsForValue().get(INVENTORY_KEY_01);
+            Integer inventoryNum = inventoryNumberStr == null ? 0 : Integer.parseInt(inventoryNumberStr);
+            if (inventoryNum > 0) {
+                stringRedisTemplate.opsForValue().set(INVENTORY_KEY_01, String.valueOf(--inventoryNum));
+                message = "成功卖出一个商品，剩余：" + inventoryNum;
+                log.info(message);
+            } else {
+                message = "商品卖完了......";
+                log.info(message);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            // v5.0判断加锁与解锁是不是同一个客户端，同一个才行，自己只能删除自己的锁，不误删他人的
+            if (uuidValue.equals(stringRedisTemplate.opsForValue().get(redisLockKey))) {
+                stringRedisTemplate.delete(redisLockKey);
+            }
+        }
+
+        return message + "\t" + "服务端口号：" + port;
+    }
+
+
+    /**
+     * V4.1 -》 V4.2
+     * 宕机与过期 + 防止死锁
+     * 解决方案： 加入一个过期时间
+     * <p>
+     * V4.2 设置key+过期时间需要合并成一个，具有原子性！！
+     *
+     * @return
+     */
+    public String saleV4() {
+        String message = "";
+        String redisLockKey = "chloeRedisLock";
+        String uuidValue = IdUtil.randomUUID() + ":" + Thread.currentThread().getId();
+
+        // 自旋
+        while (!stringRedisTemplate.opsForValue().setIfAbsent(redisLockKey, uuidValue, 30L, TimeUnit.SECONDS)) {
             try {
                 TimeUnit.MILLISECONDS.sleep(20);
             } catch (InterruptedException e) {
@@ -76,9 +122,10 @@ public class InventoryService {
 
     /**
      * 分布式锁 修改版本3.2，
-     *    1. 使用while代替if
-     *    2. 想想源码中的自旋
-     *    3. 注意while里面不需要加递归的代码
+     * 1. 使用while代替if
+     * 2. 想想源码中的自旋
+     * 3. 注意while里面不需要加递归的代码
+     *
      * @return
      */
     public String saleV32() {
