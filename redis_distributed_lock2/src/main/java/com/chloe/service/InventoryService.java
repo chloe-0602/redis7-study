@@ -31,9 +31,11 @@ public class InventoryService {
     private static final String INVENTORY_KEY_01 = "inventory001";
 
     /**
-     * V4.1
+     * V4.1 -》 V4.2
      * 宕机与过期 + 防止死锁
      * 解决方案： 加入一个过期时间
+     *
+     * V4.2 设置key+过期时间需要合并成一个，具有原子性！！
      * @return
      */
     public String sale() {
@@ -42,7 +44,7 @@ public class InventoryService {
         String uuidValue = IdUtil.randomUUID() + ":" + Thread.currentThread().getId();
 
         // 自旋
-        while (!stringRedisTemplate.opsForValue().setIfAbsent(redisLockKey, uuidValue)) {
+        while (!stringRedisTemplate.opsForValue().setIfAbsent(redisLockKey, uuidValue,30L, TimeUnit.SECONDS)) {
             try {
                 TimeUnit.MILLISECONDS.sleep(20);
             } catch (InterruptedException e) {
@@ -50,7 +52,7 @@ public class InventoryService {
             }
         }
 
-        stringRedisTemplate.expire(redisLockKey,20L, TimeUnit.SECONDS);
+//        stringRedisTemplate.expire(redisLockKey,20L, TimeUnit.SECONDS);
 
         try {
             String inventoryNumberStr = stringRedisTemplate.opsForValue().get(INVENTORY_KEY_01);
