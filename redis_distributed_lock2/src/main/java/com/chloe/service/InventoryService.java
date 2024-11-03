@@ -1,12 +1,15 @@
 package com.chloe.service;
 
 import cn.hutool.core.util.IdUtil;
+import com.chloe.lock.DistributedLockFactory;
+import com.chloe.lock.RedisDistributedLock;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
+
 
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
@@ -27,21 +30,54 @@ import java.util.concurrent.locks.ReentrantLock;
 public class InventoryService {
     @Autowired
     StringRedisTemplate stringRedisTemplate;
+    @Autowired
+    DistributedLockFactory distributedLockFactory;
     @Value("${server.port}")
     private String port;
+
     private Lock lock = new ReentrantLock();
     private static final String INVENTORY_KEY_01 = "inventory001";
 
     /**
-     * 6. lua保证原子性： finally块的判断 + del删除 不是原子性
-     *
+     * 改造V7.1 工厂设计模式+ lua脚本 实现
+     * 1. 通用性
+     * 2. 自研Redis分布式锁工具类
+     * 使用lua脚本， 类似lock实现可重入性
      * @return
      */
     public String sale() {
         String message = "";
+        Lock distributedLock = distributedLockFactory.getDistributedLock("redis");
+
+        distributedLock.lock();
+        try {
+            String inventoryNumberStr = stringRedisTemplate.opsForValue().get(INVENTORY_KEY_01);
+            Integer inventoryNum = inventoryNumberStr == null ? 0 : Integer.parseInt(inventoryNumberStr);
+            if (inventoryNum > 0) {
+                stringRedisTemplate.opsForValue().set(INVENTORY_KEY_01, String.valueOf(--inventoryNum));
+                message = "成功卖出一个商品，剩余：" + inventoryNum;
+                log.info(message);
+            } else {
+                message = "商品卖完了......";
+                log.info(message);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            distributedLock.unlock();
+        }
+        return message + "\t" + "服务端口号：" + port;
+    }
+
+    /**
+     * 6. lua保证原子性： finally块的判断 + del删除 不是原子性
+     *    不满足可重入性， 修改为V7.0
+     * @return
+     */
+    public String saleV6() {
+        String message = "";
         String redisLockKey = "chloeRedisLock";
         String uuidValue = IdUtil.randomUUID() + ":" + Thread.currentThread().getId();
-
 
         // 自旋
         while (!stringRedisTemplate.opsForValue().setIfAbsent(redisLockKey, uuidValue, 30L, TimeUnit.SECONDS)) {
