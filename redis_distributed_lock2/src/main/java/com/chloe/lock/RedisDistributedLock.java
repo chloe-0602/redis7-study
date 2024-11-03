@@ -1,6 +1,7 @@
 package com.chloe.lock;
 
 import cn.hutool.core.util.IdUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 
@@ -13,13 +14,15 @@ import java.util.concurrent.locks.Lock;
  * ClassName: RedisDistributedLock
  * Package: com.chloe.lock
  * Description:
- *   1. 直接new因为stringRedisTemplate会有空指针问题
+ * 1. 直接new因为stringRedisTemplate会有空指针问题
+ *
  * @Author Xu, Luqin
  * @Create 2024/11/3 21:13
  * @Version 1.0
  */
 //@Component
 //@Data
+@Slf4j
 public class RedisDistributedLock implements Lock {
 
     private StringRedisTemplate stringRedisTemplate;
@@ -64,9 +67,11 @@ public class RedisDistributedLock implements Lock {
                     " else " +
                     "return 0" +
                     " end";
+
             while (!stringRedisTemplate.execute(new DefaultRedisScript<>(luaLockScript, Boolean.class), Arrays.asList(lockName), uuidValue, String.valueOf(expireTime))) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
+            log.info("--> redis distributed lock: {}", uuidValue);
         } else {
             this.expireTime = unit.toSeconds(time);
         }
@@ -91,6 +96,7 @@ public class RedisDistributedLock implements Lock {
         if (null == res) {
             throw new RuntimeException("---> lock: " + lockName + " not exists...");
         }
+        log.info("--> redis distributed unlock: {}", uuidValue);
     }
 
     // 以下不做，因为我们的分布式锁，是用完之后直接删除

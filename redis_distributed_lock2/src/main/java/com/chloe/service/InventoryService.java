@@ -54,6 +54,7 @@ public class InventoryService {
             String inventoryNumberStr = stringRedisTemplate.opsForValue().get(INVENTORY_KEY_01);
             Integer inventoryNum = inventoryNumberStr == null ? 0 : Integer.parseInt(inventoryNumberStr);
             if (inventoryNum > 0) {
+                testEntry();
                 stringRedisTemplate.opsForValue().set(INVENTORY_KEY_01, String.valueOf(--inventoryNum));
                 message = "成功卖出一个商品，剩余：" + inventoryNum;
                 log.info(message);
@@ -67,6 +68,19 @@ public class InventoryService {
             distributedLock.unlock();
         }
         return message + "\t" + "服务端口号：" + port;
+    }
+
+    private void testEntry() {
+        Lock distributedLock = distributedLockFactory.getDistributedLock("redis");
+
+        distributedLock.lock();
+        try {
+            log.info("-------- 测试可重入锁 -------");
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            distributedLock.unlock();
+        }
     }
 
     /**
