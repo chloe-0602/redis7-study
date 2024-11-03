@@ -42,6 +42,7 @@ public class InventoryService {
         String redisLockKey = "chloeRedisLock";
         String uuidValue = IdUtil.randomUUID() + ":" + Thread.currentThread().getId();
 
+        // 自旋
         while (!stringRedisTemplate.opsForValue().setIfAbsent(redisLockKey, uuidValue)) {
             try {
                 TimeUnit.MILLISECONDS.sleep(20);
