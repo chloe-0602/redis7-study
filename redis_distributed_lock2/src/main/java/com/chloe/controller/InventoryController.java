@@ -29,4 +29,10 @@ public class InventoryController {
     public String sale() {
         return inventoryService.sale();
     }
+
+    @ApiOperation("使用Redisson扣减库存，一次卖一个")
+    @GetMapping(value = "/saleByRedisson")
+    public String saleByRedisson() {
+        return inventoryService.saleByRedisson();
+    }
 }

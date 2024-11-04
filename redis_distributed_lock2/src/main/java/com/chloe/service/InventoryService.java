@@ -4,6 +4,8 @@ import cn.hutool.core.util.IdUtil;
 import com.chloe.lock.DistributedLockFactory;
 import com.chloe.lock.RedisDistributedLock;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.Redisson;
+import org.redisson.api.RLock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -32,6 +34,8 @@ public class InventoryService {
     StringRedisTemplate stringRedisTemplate;
     @Autowired
     DistributedLockFactory distributedLockFactory;
+    @Autowired
+    private Redisson redisson;
     @Value("${server.port}")
     private String port;
 
@@ -39,10 +43,45 @@ public class InventoryService {
     private static final String INVENTORY_KEY_01 = "inventory001";
 
     /**
-     * 改造V8.0 新增自动续期
+     * 使用Redisson实现分布式锁
+     *
      * @return
      */
-    public String sale(){
+
+    public String saleByRedisson() {
+        String message = "";
+
+        RLock redissonLock = redisson.getLock("chloeRedisLock");
+
+        redissonLock.lock();
+        try {
+            String inventoryNumberStr = stringRedisTemplate.opsForValue().get(INVENTORY_KEY_01);
+            Integer inventoryNum = inventoryNumberStr == null ? 0 : Integer.parseInt(inventoryNumberStr);
+            if (inventoryNum > 0) {
+                stringRedisTemplate.opsForValue().set(INVENTORY_KEY_01, String.valueOf(--inventoryNum));
+                message = "成功卖出一个商品，剩余：" + inventoryNum;
+                log.info(message);
+
+            } else {
+                message = "商品卖完了......";
+                log.info(message);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (redissonLock.isLocked() && redissonLock.isHeldByCurrentThread()) {
+                redissonLock.unlock();
+            }
+        }
+        return message + "\t" + "服务端口号：" + port;
+    }
+
+    /**
+     * 改造V8.0 新增自动续期
+     *
+     * @return
+     */
+    public String sale() {
         String message = "";
         Lock distributedLock = distributedLockFactory.getDistributedLock("redis");
 
@@ -56,7 +95,11 @@ public class InventoryService {
                 log.info(message);
 
                 log.info("---等待 {} 秒，大于lockkey的ttl时间30s", 120);
-                try { TimeUnit.SECONDS.sleep(120); } catch (InterruptedException e) { throw new RuntimeException(e); }
+                try {
+                    TimeUnit.SECONDS.sleep(120);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
 
             } else {
                 message = "商品卖完了......";
@@ -75,6 +118,7 @@ public class InventoryService {
      * 1. 通用性
      * 2. 自研Redis分布式锁工具类
      * 使用lua脚本， 类似lock实现可重入性
+     *
      * @return
      */
     public String saleV7() {
@@ -117,7 +161,8 @@ public class InventoryService {
 
     /**
      * 6. lua保证原子性： finally块的判断 + del删除 不是原子性
-     *    不满足可重入性， 修改为V7.0
+     * 不满足可重入性， 修改为V7.0
+     *
      * @return
      */
     public String saleV6() {
@@ -365,4 +410,6 @@ public class InventoryService {
         }
         return message + "\t" + "服务端口号：" + port;
     }
+
+
 }
