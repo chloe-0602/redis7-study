@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.Random;
 
 /**
@@ -43,8 +44,8 @@ public class EnvelopeService {
 
         redisTemplate.opsForList().leftPushAll(envelopeKey, envelope);
 
-        log.info("发红包：{}， 具体金额信息是： {}", envelopeKey, envelope.toString());
-        return "发红包："+envelopeKey+"， 具体金额信息是：" + envelope.toString();
+        log.info("发红包：{}， 具体金额信息是： {}", envelopeKey, Arrays.asList(Arrays.stream(envelope).toArray()));
+        return "发红包："+envelopeKey+"， 具体金额信息是：" + Arrays.asList(Arrays.stream(envelope).toArray());
     }
 
     /**
