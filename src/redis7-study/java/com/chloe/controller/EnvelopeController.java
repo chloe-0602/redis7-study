@@ -30,7 +30,7 @@ public class EnvelopeController {
     }
 
     @PostMapping("/hunt")
-    public String hunt(String userId){
-        return envelopeService.hunt(userId);
+    public String hunt(String envelopeUUID,String userId){
+        return envelopeService.hunt(envelopeUUID,userId);
     }
 }

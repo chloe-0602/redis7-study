@@ -43,6 +43,7 @@ public class EnvelopeService {
         String envelopeKey = ENVELOPE_KEY + IdUtil.randomUUID();
 
         redisTemplate.opsForList().leftPushAll(envelopeKey, envelope);
+        // 还可以设置 红包过期时间
 
         log.info("发红包：{}， 具体金额信息是： {}", envelopeKey, Arrays.asList(Arrays.stream(envelope).toArray()));
         return "发红包："+envelopeKey+"， 具体金额信息是：" + Arrays.asList(Arrays.stream(envelope).toArray());
@@ -79,17 +80,31 @@ public class EnvelopeService {
     /**
      * 抢红包功能
      * 1. 判断是够已经抢过了
-     *    1.1 抢过了，返回error:-1 表示已经抢过 不能再抢啦~~~
-     *    1.2 没有抢过
-     *        1.2.1判断是否还有红包还能抢
-     *          还有
-     *          1.2.1.1 将list中的数据pop出来，比如res
-     *          1.2.1.2 将userid res数据存入hash
-     *        1.2.2 红包已经抢完了，返回error:-2 红包已经抢完了
+     * 1.1 抢过了，返回error:-1 表示已经抢过 不能再抢啦~~~
+     * 1.2 没有抢过
+     * 1.2.1判断是否还有红包还能抢
+     * 还有
+     * 1.2.1.1 将list中的数据pop出来，比如res
+     * 1.2.1.2 将userid res数据存入hash
+     * 1.2.2 红包已经抢完了，返回error:-2 红包已经抢完了
+     *
+     * @param envelopeUUID
      * @param userId
      * @return
      */
-    public String hunt(String userId) {
-        return null;
+    public String hunt(String envelopeUUID,String userId) {
+        Object envelope = redisTemplate.opsForHash().get(ENVELOPE_CONSUME_KEY + envelopeUUID, userId);
+        if (null != envelope){
+            return "error:-1" + ", message: 用户" + userId + "已经抢过了，别捣蛋~~";
+        }else{
+            Object huntEnvelope = redisTemplate.opsForList().leftPop(ENVELOPE_KEY + envelopeUUID);
+            if (null == huntEnvelope) {
+                return "error:-2" + ", message: 红包" + envelopeUUID + "已经抢完了, 下次赶早！";
+            } else {
+                redisTemplate.opsForHash().put(ENVELOPE_CONSUME_KEY + envelopeUUID, userId, huntEnvelope);
+                //TODO 后续异步进mysql或者RabbitMQ进一步处理
+                return "用户"+ userId + "抢到了" + huntEnvelope + "元红包，恭喜呀~~";
+            }
+        }
     }
 }
